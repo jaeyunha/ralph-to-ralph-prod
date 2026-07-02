@@ -288,6 +288,13 @@
       "when": 1782921120771,
       "tag": "0040_remove_free_tier_public",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1783015066102,
+      "tag": "0041_seed_paid_plan_overage_prices",
+      "breakpoints": true
     }
   ]
 }
