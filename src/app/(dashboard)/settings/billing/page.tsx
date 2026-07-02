@@ -47,8 +47,8 @@ export default async function BillingSettingsPage() {
       <div className="space-y-3">
         <h1 className="text-2xl font-semibold text-fg">Billing</h1>
         <p className="text-[14px] text-fg-2">
-          No plan record was found. Run the database seed to create the Free
-          plan.
+          No billing plan record was found. Run the database seed to create the
+          hosted paid plans.
         </p>
       </div>
     );
