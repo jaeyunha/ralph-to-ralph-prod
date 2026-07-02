@@ -597,8 +597,8 @@ export function PricingPage() {
               </span>
             </h1>
             <p className="body" style={{ maxWidth: 580 }}>
-              Start free. Upgrade when your volume grows. Or self-host the same
-              source for free forever — opensend is ELv2 either way.
+              Start with Lite for hosted sending, or self-host the same source
+              for free forever — opensend is ELv2 either way.
             </p>
 
             <PricingTierSelector

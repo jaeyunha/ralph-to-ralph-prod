@@ -46,6 +46,15 @@ describe("no hosted free tier in public surfaces", () => {
     );
     // No "Free" column in the compare-plans headers.
     expect(pricing).not.toMatch(/headers\s*=\s*\[\s*"Free"/);
+    expect(pricing).not.toMatch(/Start free/i);
+    expect(pricing).not.toMatch(/For tinkering and side projects/i);
+
+    const billingPage = readFileSync(
+      "src/app/(dashboard)/settings/billing/page.tsx",
+      "utf8",
+    );
+    expect(billingPage).not.toMatch(/create the Free\s+plan/i);
+    expect(billingPage).not.toMatch(/No plan record was found/i);
   });
 
   it("seeds hosted paid-plan overage prices before hiding Free", () => {
