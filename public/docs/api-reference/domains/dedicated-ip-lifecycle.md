@@ -81,7 +81,7 @@ Creates a lifecycle record with status `requested`. Does **not** provision the S
 |---|---|---|---|
 | `name` | string | yes | Human-readable name (max 255 chars) |
 | `scaling_mode` | `"MANAGED"` \| `"STANDARD"` | no | Default `"MANAGED"` |
-| `provider_pool_name` | string | no | Custom SES pool name (leave blank to auto-generate) |
+| `provider_pool_name` | string | no | Manual lifecycle metadata only; operator approval always provisions an OpenSend-generated SES pool name |
 
 **Response** — `201 Created`
 
@@ -118,7 +118,7 @@ Updates mutable fields. If `status` is set to `"retired"` and the pool has `prov
 |---|---|---|
 | `name` | string | Rename the pool |
 | `status` | lifecycle status | Advance or roll back lifecycle state |
-| `provider_pool_name` | string \| null | Override the SES pool name |
+| `provider_pool_name` | string \| null | Override the SES pool name before SES provisioning; immutable after `provider: "ses"` |
 | `scaling_mode` | `"MANAGED"` \| `"STANDARD"` | Change scaling mode |
 | `operator_notes` | string \| null | Internal operator annotations (max 4000 chars) |
 

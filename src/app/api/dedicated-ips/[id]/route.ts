@@ -83,6 +83,38 @@ function toDedicatedIpPoolResponse(
   };
 }
 
+async function deleteSesPoolOrError(input: {
+  id: string;
+  poolName: string;
+  region?: string | null;
+  event: string;
+}): Promise<Response | null> {
+  try {
+    await configurationSetService.deleteDedicatedIpPool({
+      poolName: input.poolName,
+      region: input.region ?? undefined,
+    });
+    return null;
+  } catch (err) {
+    console.error(
+      JSON.stringify({
+        level: "error",
+        event: input.event,
+        pool_id: input.id,
+      }),
+      err,
+    );
+    return NextResponse.json(
+      {
+        error:
+          "Failed to delete SES dedicated IP pool; lifecycle record was not retired.",
+        code: "ses_pool_delete_failed",
+      },
+      { status: 502 },
+    );
+  }
+}
+
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -129,27 +161,43 @@ export async function PATCH(
   const providerPoolName =
     parsed.data.provider_pool_name ?? parsed.data.ses_pool_name ?? undefined;
   const status = parsed.data.status;
+  const providerPoolNameProvided =
+    parsed.data.provider_pool_name !== undefined ||
+    parsed.data.ses_pool_name !== undefined;
+  let existing:
+    | NonNullable<
+        Awaited<ReturnType<typeof dedicatedIpPoolRepo.findByIdForUser>>
+      >
+    | undefined;
 
-  // If retiring a SES-provisioned pool, release it from SES first (best-effort).
-  if (status === "retired") {
-    const existing = await dedicatedIpPoolRepo.findByIdForUser(id, userId);
-    if (existing?.provider === "ses") {
-      try {
-        await configurationSetService.deleteDedicatedIpPool({
-          poolName: existing.sesPoolName,
-          region: existing.awsRegion ?? undefined,
-        });
-      } catch (err) {
-        console.error(
-          JSON.stringify({
-            level: "error",
-            event: "dedicated_ip.patch.delete_ses_pool_failed",
-            pool_id: id,
-          }),
-          err,
-        );
-      }
+  if (providerPoolNameProvided || status === "retired") {
+    existing = await dedicatedIpPoolRepo.findByIdForUser(id, userId);
+    if (!existing) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
+  }
+
+  if (providerPoolNameProvided && existing?.provider === "ses") {
+    return NextResponse.json(
+      {
+        error: "SES pool names are immutable after provisioning.",
+        code: "provider_pool_name_locked",
+      },
+      { status: 403 },
+    );
+  }
+
+  // If retiring a SES-provisioned pool, release it from SES before marking the
+  // local lifecycle record retired. deleteDedicatedIpPool treats SES not-found
+  // as success; every other provider failure leaves the record retryable.
+  if (status === "retired" && existing?.provider === "ses") {
+    const deleteError = await deleteSesPoolOrError({
+      id,
+      poolName: existing.sesPoolName,
+      region: existing.awsRegion,
+      event: "dedicated_ip.patch.delete_ses_pool_failed",
+    });
+    if (deleteError) return deleteError;
   }
 
   const updated = await dedicatedIpPoolRepo.updateForUser(id, userId, {
@@ -184,23 +232,17 @@ export async function DELETE(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  // Release the SES pool if it was auto-provisioned (best-effort).
+  // Release the SES pool before marking the local record retired.
+  // deleteDedicatedIpPool treats SES not-found as success; every other provider
+  // failure leaves the record active/retryable so the real SES pool is not orphaned.
   if (existing.provider === "ses") {
-    try {
-      await configurationSetService.deleteDedicatedIpPool({
-        poolName: existing.sesPoolName,
-        region: existing.awsRegion ?? undefined,
-      });
-    } catch (err) {
-      console.error(
-        JSON.stringify({
-          level: "error",
-          event: "dedicated_ip.delete.delete_ses_pool_failed",
-          pool_id: id,
-        }),
-        err,
-      );
-    }
+    const deleteError = await deleteSesPoolOrError({
+      id,
+      poolName: existing.sesPoolName,
+      region: existing.awsRegion,
+      event: "dedicated_ip.delete.delete_ses_pool_failed",
+    });
+    if (deleteError) return deleteError;
   }
 
   const pool = await dedicatedIpPoolRepo.updateForUser(id, userId, {

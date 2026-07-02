@@ -349,6 +349,26 @@ describe("DELETE /api/dedicated-ips/[id] — SES pool release", () => {
     });
   });
 
+  it("leaves SES-backed pools retryable when provider deletion fails", async () => {
+    mockAuthorizeDashboardOrApiKey.mockResolvedValueOnce({ dashboard: true });
+    mockGetServerSession.mockResolvedValueOnce(SESSION);
+    mockFindByIdForUser.mockResolvedValueOnce(POOL_FIXTURE);
+    mockDeleteDedicatedIpPool.mockRejectedValueOnce(
+      new Error("ses unavailable"),
+    );
+
+    const req = new Request("http://localhost/api/dedicated-ips/pool-1", {
+      method: "DELETE",
+    });
+    const res = await DELETE(req, {
+      params: Promise.resolve({ id: "pool-1" }),
+    });
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.code).toBe("ses_pool_delete_failed");
+    expect(mockUpdateForUser).not.toHaveBeenCalled();
+  });
+
   it("does not call deleteDedicatedIpPool for manual provider", async () => {
     mockAuthorizeDashboardOrApiKey.mockResolvedValueOnce({ dashboard: true });
     mockGetServerSession.mockResolvedValueOnce(SESSION);
@@ -402,6 +422,25 @@ describe("PATCH /api/dedicated-ips/[id] — SES pool release on retire", () => {
     });
   });
 
+  it("leaves SES-backed pools retryable when PATCH retire provider deletion fails", async () => {
+    mockAuthorizeDashboardOrApiKey.mockResolvedValueOnce({ dashboard: true });
+    mockGetServerSession.mockResolvedValueOnce(SESSION);
+    mockFindByIdForUser.mockResolvedValueOnce(POOL_FIXTURE);
+    mockDeleteDedicatedIpPool.mockRejectedValueOnce(
+      new Error("ses unavailable"),
+    );
+
+    const req = new Request("http://localhost/api/dedicated-ips/pool-1", {
+      method: "PATCH",
+      body: JSON.stringify({ status: "retired" }),
+    });
+    const res = await PATCH(req, { params: Promise.resolve({ id: "pool-1" }) });
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.code).toBe("ses_pool_delete_failed");
+    expect(mockUpdateForUser).not.toHaveBeenCalled();
+  });
+
   it("does not call deleteDedicatedIpPool when PATCH status is not retired", async () => {
     mockAuthorizeDashboardOrApiKey.mockResolvedValueOnce({ dashboard: true });
     mockGetServerSession.mockResolvedValueOnce(SESSION);
@@ -416,6 +455,23 @@ describe("PATCH /api/dedicated-ips/[id] — SES pool release on retire", () => {
     });
     const res = await PATCH(req, { params: Promise.resolve({ id: "pool-1" }) });
     expect(res.status).toBe(200);
+    expect(mockDeleteDedicatedIpPool).not.toHaveBeenCalled();
+  });
+
+  it("rejects provider pool name changes after SES provisioning", async () => {
+    mockAuthorizeDashboardOrApiKey.mockResolvedValueOnce({ dashboard: true });
+    mockGetServerSession.mockResolvedValueOnce(SESSION);
+    mockFindByIdForUser.mockResolvedValueOnce(POOL_FIXTURE);
+
+    const req = new Request("http://localhost/api/dedicated-ips/pool-1", {
+      method: "PATCH",
+      body: JSON.stringify({ provider_pool_name: "attacker-existing-pool" }),
+    });
+    const res = await PATCH(req, { params: Promise.resolve({ id: "pool-1" }) });
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.code).toBe("provider_pool_name_locked");
+    expect(mockUpdateForUser).not.toHaveBeenCalled();
     expect(mockDeleteDedicatedIpPool).not.toHaveBeenCalled();
   });
 });

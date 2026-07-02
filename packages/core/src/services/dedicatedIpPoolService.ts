@@ -100,10 +100,10 @@ export async function approveAndProvisionPool(
     });
   }
 
-  // Generate a collision-proof SES pool name.
-  const sesPoolName = pool.sesPoolName.startsWith("manual-")
-    ? buildSesPoolName(pool.userId, poolId)
-    : pool.sesPoolName;
+  // Always provision OpenSend-owned pool names. Tenant-supplied names are only
+  // lifecycle-request metadata; they must never make approval collide with or
+  // take ownership of an existing SES pool.
+  const sesPoolName = buildSesPoolName(pool.userId, poolId);
 
   const awsRegion = opts.awsRegion ?? "us-east-1";
 
