@@ -121,7 +121,7 @@ describe("broadcast sender billing gate", () => {
     mockInsertChain();
   });
 
-  it("leaves unpaid hosted broadcasts retryable, creates zero email rows, and continues", async () => {
+  it("marks unpaid hosted broadcasts billing-blocked, creates zero email rows, and continues", async () => {
     const blocked = broadcast({
       id: "broadcast-blocked",
       userId: "blocked-user",
@@ -162,7 +162,7 @@ describe("broadcast sender billing gate", () => {
     );
     expect(mockDb.insert).toHaveBeenCalledTimes(1);
     expect(updateSetMock()).toHaveBeenCalledWith({
-      status: "queued",
+      status: "blocked_billing",
     });
     expect(mockReleaseEmailQuota).not.toHaveBeenCalled();
   });

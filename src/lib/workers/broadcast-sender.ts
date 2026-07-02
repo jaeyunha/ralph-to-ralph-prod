@@ -215,7 +215,7 @@ export async function processScheduledBroadcasts() {
         if (blockedBilling) {
           await db
             .update(broadcasts)
-            .set({ status: broadcast.status })
+            .set({ status: "blocked_billing" })
             .where(eq(broadcasts.id, broadcast.id));
           continue;
         }
