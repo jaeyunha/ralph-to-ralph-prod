@@ -177,7 +177,11 @@ export async function PATCH(
     }
   }
 
-  if (providerPoolNameProvided && existing?.provider === "ses") {
+  if (
+    providerPoolNameProvided &&
+    existing?.provider === "ses" &&
+    providerPoolName !== existing.sesPoolName
+  ) {
     return NextResponse.json(
       {
         error: "SES pool names are immutable after provisioning.",

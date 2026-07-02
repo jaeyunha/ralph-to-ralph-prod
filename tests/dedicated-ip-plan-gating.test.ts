@@ -458,6 +458,38 @@ describe("PATCH /api/dedicated-ips/[id] — SES pool release on retire", () => {
     expect(mockDeleteDedicatedIpPool).not.toHaveBeenCalled();
   });
 
+  it("allows idempotent provider pool names after SES provisioning", async () => {
+    mockAuthorizeDashboardOrApiKey.mockResolvedValueOnce({ dashboard: true });
+    mockGetServerSession.mockResolvedValueOnce(SESSION);
+    mockFindByIdForUser.mockResolvedValueOnce(POOL_FIXTURE);
+    mockUpdateForUser.mockResolvedValueOnce({
+      ...POOL_FIXTURE,
+      name: "Renamed pool",
+      status: "warming",
+      warmingStartedAt: new Date(),
+    });
+
+    const req = new Request("http://localhost/api/dedicated-ips/pool-1", {
+      method: "PATCH",
+      body: JSON.stringify({
+        name: "Renamed pool",
+        status: "warming",
+        provider_pool_name: POOL_FIXTURE.sesPoolName,
+      }),
+    });
+    const res = await PATCH(req, { params: Promise.resolve({ id: "pool-1" }) });
+    expect(res.status).toBe(200);
+    expect(mockUpdateForUser).toHaveBeenCalledWith(
+      "pool-1",
+      "user-1",
+      expect.objectContaining({
+        name: "Renamed pool",
+        status: "warming",
+        sesPoolName: POOL_FIXTURE.sesPoolName,
+      }),
+    );
+    expect(mockDeleteDedicatedIpPool).not.toHaveBeenCalled();
+  });
   it("rejects provider pool name changes after SES provisioning", async () => {
     mockAuthorizeDashboardOrApiKey.mockResolvedValueOnce({ dashboard: true });
     mockGetServerSession.mockResolvedValueOnce(SESSION);
