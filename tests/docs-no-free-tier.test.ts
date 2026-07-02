@@ -47,4 +47,18 @@ describe("no hosted free tier in public surfaces", () => {
     // No "Free" column in the compare-plans headers.
     expect(pricing).not.toMatch(/headers\s*=\s*\[\s*"Free"/);
   });
+
+  it("seeds hosted paid-plan overage prices before hiding Free", () => {
+    const migration = readFileSync(
+      "drizzle/0040_remove_free_tier_public.sql",
+      "utf8",
+    );
+    const overageUpdate = migration.indexOf("stripe_overage_price_id");
+    const hideFree = migration.indexOf("WHERE \"slug\" = 'free'");
+    expect(overageUpdate).toBeGreaterThanOrEqual(0);
+    expect(hideFree).toBeGreaterThan(overageUpdate);
+    expect(migration).toContain("cloud_lite_15k_monthly");
+    expect(migration).toContain("price_1TjDCQQe1Ex4Xxd5NiD8e7wG");
+    expect(migration).not.toContain("REPLACE_WITH");
+  });
 });

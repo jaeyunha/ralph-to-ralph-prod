@@ -388,6 +388,9 @@ describe("deploy-001: ECS Fargate deployment configuration", () => {
       "image: ghcr.io/namuh-eng/opensend-ingester:v1.0.0",
     );
     expect(scheduler).toContain('command: ["bun", "/app/job-scheduler.js"]');
+    expect(app).toContain(
+      "DEDICATED_IP_OPERATOR_TOKEN: ${DEDICATED_IP_OPERATOR_TOKEN:-}",
+    );
   });
 
   it("docker-compose local override builds the app and ingester from source", () => {

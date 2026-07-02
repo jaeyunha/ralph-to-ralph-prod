@@ -349,6 +349,26 @@ describe("DELETE /api/dedicated-ips/[id] — SES pool release", () => {
     });
   });
 
+  it("leaves SES-backed pools retryable when provider deletion fails", async () => {
+    mockAuthorizeDashboardOrApiKey.mockResolvedValueOnce({ dashboard: true });
+    mockGetServerSession.mockResolvedValueOnce(SESSION);
+    mockFindByIdForUser.mockResolvedValueOnce(POOL_FIXTURE);
+    mockDeleteDedicatedIpPool.mockRejectedValueOnce(
+      new Error("ses unavailable"),
+    );
+
+    const req = new Request("http://localhost/api/dedicated-ips/pool-1", {
+      method: "DELETE",
+    });
+    const res = await DELETE(req, {
+      params: Promise.resolve({ id: "pool-1" }),
+    });
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.code).toBe("ses_pool_delete_failed");
+    expect(mockUpdateForUser).not.toHaveBeenCalled();
+  });
+
   it("does not call deleteDedicatedIpPool for manual provider", async () => {
     mockAuthorizeDashboardOrApiKey.mockResolvedValueOnce({ dashboard: true });
     mockGetServerSession.mockResolvedValueOnce(SESSION);
@@ -400,6 +420,25 @@ describe("PATCH /api/dedicated-ips/[id] — SES pool release on retire", () => {
       poolName: POOL_FIXTURE.sesPoolName,
       region: POOL_FIXTURE.awsRegion,
     });
+  });
+
+  it("leaves SES-backed pools retryable when PATCH retire provider deletion fails", async () => {
+    mockAuthorizeDashboardOrApiKey.mockResolvedValueOnce({ dashboard: true });
+    mockGetServerSession.mockResolvedValueOnce(SESSION);
+    mockFindByIdForUser.mockResolvedValueOnce(POOL_FIXTURE);
+    mockDeleteDedicatedIpPool.mockRejectedValueOnce(
+      new Error("ses unavailable"),
+    );
+
+    const req = new Request("http://localhost/api/dedicated-ips/pool-1", {
+      method: "PATCH",
+      body: JSON.stringify({ status: "retired" }),
+    });
+    const res = await PATCH(req, { params: Promise.resolve({ id: "pool-1" }) });
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.code).toBe("ses_pool_delete_failed");
+    expect(mockUpdateForUser).not.toHaveBeenCalled();
   });
 
   it("does not call deleteDedicatedIpPool when PATCH status is not retired", async () => {
