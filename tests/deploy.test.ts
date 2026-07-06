@@ -465,6 +465,17 @@ describe("deploy-001: ECS Fargate deployment configuration", () => {
     expect(runbook).toContain("GitHub-hosted OIDC fallback");
     expect(runbook).toContain("AWS_DEPLOY_ROLE_ARN");
     expect(runbook).toContain("deploy_path` to `github-hosted-oidc");
+    expect(runbook).toContain("role-duration-seconds: 4500");
+    expect(runbook).toContain(
+      "max session duration must be at least 4,500 seconds",
+    );
+    expect(runbook).toContain(
+      "shared `deploy-prod` workflow concurrency group",
+    );
+    expect(runbook).toContain("cancels any pending or running Deploy workflow");
+    expect(runbook).toContain(
+      "manual `mac-mini` deploys keep `cancel-in-progress` disabled",
+    );
   });
 
   it("deploy workflow exposes a GitHub-hosted OIDC fallback path", () => {
@@ -487,9 +498,15 @@ describe("deploy-001: ECS Fargate deployment configuration", () => {
     expect(workflow).toContain(
       "role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}",
     );
+    expect(workflow).toContain("timeout-minutes: 75");
+    expect(workflow).toContain("role-duration-seconds: 4500");
     expect(workflow).toContain("bun run deploy:fallback:preflight");
     expect(workflow).toContain("bash scripts/deploy.sh all");
     expect(workflow).toContain("PLATFORM: linux/amd64");
+    expect(workflow).toContain("group: deploy-prod");
+    expect(workflow).toContain(
+      "cancel-in-progress: ${{ github.event_name == 'workflow_dispatch' && inputs.deploy_path == 'github-hosted-oidc' }}",
+    );
     expect(workflow).toContain(
       "github.event_name == 'push' || inputs.deploy_path == 'mac-mini'",
     );

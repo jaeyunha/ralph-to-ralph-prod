@@ -17,6 +17,7 @@ Use a trusted operator machine with:
 - Network access to AWS ECR/ECS/Secrets Manager in the deploy region.
 - No copied GitHub Actions secrets and no dumped runner environment. Authenticate through an operator AWS profile, SSO session, or equivalent approved AWS credential source.
 - For GitHub-hosted OIDC fallback: repository variables `AWS_DEPLOY_ROLE_ARN`, `AWS_REGION`, `AWS_ACCOUNT_ID`, `ECS_CLUSTER`, and `PRODUCT` configured for production. `AWS_DEPLOY_ROLE_ARN` must trust this repository's GitHub Actions OIDC subject for manual Deploy workflow runs.
+- For GitHub-hosted OIDC fallback: the IAM role's max session duration must be at least 4,500 seconds (75 minutes). The workflow requests `role-duration-seconds: 4500` so credentials stay valid for the full fallback job timeout.
 
 Required tools:
 
@@ -64,7 +65,9 @@ Use this path first when the Mac mini runner is the only blocker and GitHub Acti
 3. Set `deploy_path` to `github-hosted-oidc`.
 4. Start the run and monitor the `Deploy via GitHub-hosted OIDC fallback` job.
 
-The fallback job runs on `ubuntu-latest`, installs Bun with `oven-sh/setup-bun@v2`, requests an OIDC token with `id-token: write`, assumes `vars.AWS_DEPLOY_ROLE_ARN`, runs `bun run deploy:fallback:preflight`, then runs `bash scripts/deploy.sh all`. The preflight performs the same non-mutating checks documented below before any image push, task registration, migration task, or ECS service update.
+The fallback job runs on `ubuntu-latest`, installs Bun with `oven-sh/setup-bun@v2`, requests an OIDC token with `id-token: write`, assumes `vars.AWS_DEPLOY_ROLE_ARN` for 4,500 seconds to match the 75-minute job timeout, runs `bun run deploy:fallback:preflight`, then runs `bash scripts/deploy.sh all`. The preflight performs the same non-mutating checks documented below before any image push, task registration, migration task, or ECS service update.
+
+Starting a manual `github-hosted-oidc` fallback intentionally supersedes the shared `deploy-prod` workflow concurrency group. That run cancels any pending or running Deploy workflow in the group, including a Mac mini deploy stuck waiting for the offline self-hosted runner, so the fallback is not trapped behind the outage it is meant to bypass. Normal push deploys and manual `mac-mini` deploys keep `cancel-in-progress` disabled; do not start the fallback unless the operator decision is to replace the blocked deploy with the selected production SHA.
 
 Required GitHub repository variables:
 
@@ -76,7 +79,7 @@ Required GitHub repository variables:
 | `ECS_CLUSTER` | ECS cluster name; defaults to `namuh` in the workflow when unset. |
 | `PRODUCT` | Service/repository prefix; defaults to `opensend` in the workflow when unset. |
 
-The OIDC role needs the same production permissions as the Mac mini deploy identity for STS, ECR push/login, ECS service/task-definition updates, migration task execution, CloudWatch Logs reads/writes used by the deploy script, and Secrets Manager `describe-secret` metadata lookups. It must not grant `secretsmanager:GetSecretValue` for this deploy path.
+The OIDC role needs the same production permissions as the Mac mini deploy identity for STS, ECR push/login, ECS service/task-definition updates, migration task execution, CloudWatch Logs reads/writes used by the deploy script, and Secrets Manager `describe-secret` metadata lookups. It must not grant `secretsmanager:GetSecretValue` for this deploy path. Its IAM max session duration must be configured to at least 4,500 seconds, matching the workflow's `role-duration-seconds` and 75-minute timeout.
 
 ## Preflight
 
