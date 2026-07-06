@@ -121,7 +121,7 @@ describe("broadcast sender billing gate", () => {
     mockInsertChain();
   });
 
-  it("blocks unpaid hosted broadcasts before fanout, creates zero email rows, and continues", async () => {
+  it("marks unpaid hosted broadcasts billing-blocked, creates zero email rows, and continues", async () => {
     const blocked = broadcast({
       id: "broadcast-blocked",
       userId: "blocked-user",

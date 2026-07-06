@@ -195,17 +195,17 @@ describe("approveAndProvisionPool", () => {
     expect(result.volumeWarning).toBe(false);
   });
 
-  it("reuses existing ses pool name when not manual-prefixed", async () => {
-    const poolWithExistingName = {
+  it("ignores tenant-supplied SES pool names during approval", async () => {
+    const poolWithTenantSuppliedName = {
       ...BASE_POOL,
-      sesPoolName: "opensend-custom-pool",
+      sesPoolName: "attacker-chosen-existing-pool",
     };
-    mockFindById.mockResolvedValueOnce(poolWithExistingName);
+    mockFindById.mockResolvedValueOnce(poolWithTenantSuppliedName);
 
     await approveAndProvisionPool(BASE_POOL.id);
 
     const callArgs = mockCreateDedicatedIpPool.mock.calls[0][0];
-    expect(callArgs.poolName).toBe("opensend-custom-pool");
+    expect(callArgs.poolName).toBe("opensend-userabcd-pooluuid");
   });
 });
 
