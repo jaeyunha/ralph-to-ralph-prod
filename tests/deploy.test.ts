@@ -464,7 +464,58 @@ describe("deploy-001: ECS Fargate deployment configuration", () => {
     expect(runbook).toContain("bash scripts/deploy.sh all");
     expect(runbook).toContain("no-op fallback deploy exercise");
     expect(runbook).toContain("not the Mac mini runner");
-    expect(runbook).toContain("not proven fully closed");
+    expect(runbook).toContain("real no-op fallback deploy exercise");
+    expect(runbook).toContain("GitHub-hosted OIDC fallback");
+    expect(runbook).toContain("AWS_DEPLOY_ROLE_ARN");
+    expect(runbook).toContain("deploy_path` to `github-hosted-oidc");
+    expect(runbook).toContain("role-duration-seconds: 4500");
+    expect(runbook).toContain(
+      "max session duration must be at least 4,500 seconds",
+    );
+    expect(runbook).toContain(
+      "shared `deploy-prod` workflow concurrency group",
+    );
+    expect(runbook).toContain("cancels any pending or running Deploy workflow");
+    expect(runbook).toContain(
+      "manual `mac-mini` deploys keep `cancel-in-progress` disabled",
+    );
+  });
+
+  it("deploy workflow exposes a GitHub-hosted OIDC fallback path", () => {
+    const workflow = readFileSync(
+      join(root, ".github", "workflows", "deploy.yml"),
+      "utf-8",
+    );
+
+    expect(workflow).toContain("deploy_path:");
+    expect(workflow).toContain("github-hosted-oidc");
+    expect(workflow).toContain("id-token: write");
+    expect(workflow).toContain("deploy-mac-mini:");
+    expect(workflow).toContain("runs-on: [self-hosted, opensend-deploy]");
+    expect(workflow).toContain("deploy-github-hosted-oidc:");
+    expect(workflow).toContain("runs-on: ubuntu-latest");
+    expect(workflow).toContain("oven-sh/setup-bun@v2");
+    expect(workflow).toContain('bun-version: "1.3.8"');
+    expect(workflow).toContain("docker/setup-buildx-action@v3");
+    expect(workflow).toContain("aws-actions/configure-aws-credentials@v4");
+    expect(workflow).toContain(
+      "role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}",
+    );
+    expect(workflow).toContain("timeout-minutes: 75");
+    expect(workflow).toContain("role-duration-seconds: 4500");
+    expect(workflow).toContain("bun run deploy:fallback:preflight");
+    expect(workflow).toContain("bash scripts/deploy.sh all");
+    expect(workflow).toContain("PLATFORM: linux/amd64");
+    expect(workflow).toContain("group: deploy-prod");
+    expect(workflow).toContain(
+      "cancel-in-progress: ${{ github.event_name == 'workflow_dispatch' && inputs.deploy_path == 'github-hosted-oidc' }}",
+    );
+    expect(workflow).toContain(
+      "github.event_name == 'push' || inputs.deploy_path == 'mac-mini'",
+    );
+    expect(workflow).toContain(
+      "github.event_name == 'workflow_dispatch' && inputs.deploy_path == 'github-hosted-oidc'",
+    );
   });
 
   it("deploy fallback preflight passes when app and ingester ECS services are ACTIVE", () => {
